@@ -1,62 +1,110 @@
 #define __SFR_OFFSET 0
 #include <avr/io.h>
 
-.section  .text
+.equ    DETECT_5V_PIN,  0       ; Arduino A0 = ADC0 / PC0
+.equ    ENABLE_5V_PIN,  2       ; Arduino D2 = PD2
+.equ    MIN_5V,         4750    ; mV
+.equ    MAX_5V,         5250    ; mV
 
-.global   sequencer_start
-.type     sequencer_start,  @function
+.equ    DETECT_12V_PIN, 1       ; Arduino A1 = ADC1 / PC1
+.equ    ENABLE_12V_PIN, 3       ; Arduino D3 = PD3
+.equ    MIN_12V,        1750    ; mV
+.equ    MAX_12V,        2150    ; mV
 
+.equ    MIN_NEG5V,      -5250   ; mV
+.equ    MAX_NEG5V,      -4750   ; mV
+.equ    DETECT_NEG5V_ADC,   2   ; Arduino A2 = ADC2 / PC2
+
+.equ    ADC_REF,        5
+
+.section .text
+
+.global sequencer_start
+.type sequencer_start, @function
+
+.extern serial_power_good
+          
 sequencer_start:
+    rjmp RESET
 
-DELAY_20MS:
-  ; delay
 
 RESET:
-  ;init
-  rjmp  CHECK_NEG5
+    ; Configure relay pins as outputs eventually.
+
+    rjmp CHECK_NEG5
+
 
 CHECK_NEG5:
-  ; read ADC2
-  ; compare thresholds
+    ; Read ADC2.
+    ; Compare against acceptable ADC thresholds.
 
-  brlo  FAULT
-  rjmp  ENABLE_5V
+    ; Example later:
+    ; brlo FAULT
+
+    rjmp ENABLE_5V
+
 
 ENABLE_5V:
-  ; enables the 5v relay
-  sbi   PORTD,  2
-  rcall DELAY_20MS
-  rjmp  CHECK_5V
+    ; Enable +5 V relay.
+    sbi PORTD, 2
+
+    rcall DELAY_20MS
+    rjmp CHECK_5V
+
 
 CHECK_5V:
-  ; check 5v
-  call  serial_power_good
-  rjmp  RUN;
-  
+    ; Read ADC0 and validate +5 V.
+
+    call serial_power_good
+    rjmp ENABLE_12V
+
+
+ENABLE_12V:
+    sbi PORTD, 3
+
+    rcall DELAY_20MS
+    rjmp CHECK_12V
+
+
+CHECK_12V:
+    ; Read ADC1 and validate +12 V.
+
+    rjmp RUN
+
+
 RUN:
-  rcall CHECK_ALL_RAILS 
+    rcall CHECK_ALL_RAILS
+    rjmp RUN
+
 
 CHECK_ALL_RAILS:
-  ; check rails
+    ; Check -5 V
+    ; Check +5 V
+    ; Check +12 V
+    ;
+    ; On failure:
+    ; rjmp FAULT
+
+    ret
+
 
 FAULT:
-  cbi PORTD, 3  ; + 12 off
-  rcall DELAY_20MS
-  cbi   PORTD, 2
+    ; +12 V OFF first
+    cbi   PORTD, 3
+
+    rcall DELAY_20MS
+
+    ; +5 V OFF second
+    cbi   PORTD, 2
+
+    rjmp  FAULT_LOOP
+
 
 FAULT_LOOP:
-  rjmp  FAULT_LOOP;
+    rjmp FAULT_LOOP
 
-; These will output the message for each fault state
 
-FAULT_STATE:
-
-NEGATIVE_5:
-
-_5V:
-
-_12V:
-  
-RUNTIME:
-
-NONE:
+DELAY_20MS:
+    ; Temporary placeholder.
+    ; IMPORTANT: must return.
+    ret
