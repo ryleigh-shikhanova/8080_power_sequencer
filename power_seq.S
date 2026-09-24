@@ -25,8 +25,36 @@
 .extern serial_power_good
           
 sequencer_start:
-    rjmp RESET
+    rjmp SETUP
 
+SETUP:
+    rcall   INIT_ADC_PINS
+    rcall   INIT_OUTPUT_PINS
+    rjmp    RESET
+
+; set detection pins to input
+; disable internal pull-up
+INIT_ADC_PINS:
+    ; set as inputs
+    cbi DDRC,   DETECT_5V_PIN
+    cbi DDRC,   DETECT_12V_PIN
+    cbi DDRC,   DETECT_NEG5V_ADC
+
+    ; no internal pull-up
+    cbi PORTC,   DETECT_5V_PIN
+    cbi PORTC,   DETECT_12V_PIN
+    cbi PORTC,   DETECT_NEG5V_ADC   
+    ret
+
+INIT_OUTPUT_PINS:  
+    ; set initial state low
+    cbi PORTD, ENABLE_5V_PIN
+    cbi PORTD, ENABLE_12V_PIN
+
+    ; configure as output
+    sbi DDRD,  ENABLE_5V_PIN
+    sbi DDRD,  ENABLE_12V_PIN
+    ret
 
 RESET:
     ; Configure relay pins as outputs eventually.
